@@ -7,16 +7,16 @@ function correctPath(path) {
 
   return '/' +
     segments
-    .map(s => {
-      let segment = s;
-      if (segment.charAt(0) === '{' && segment.charAt(segment.length - 1) === '}') {
-        segment = segment.slice(1, -1);
-        return ':' + segment;
-      }
+      .map(s => {
+        let segment = s;
+        if (segment.charAt(0) === '{' && segment.charAt(segment.length - 1) === '}') {
+          segment = segment.slice(1, -1);
+          return ':' + segment;
+        }
 
-      return segment;
-    })
-    .join('/');
+        return segment;
+      })
+      .join('/');
 }
 
 // wrapped MockData to satisfy eslint's no funciton definitions inside of loops
@@ -38,6 +38,8 @@ function generateResponse(potentialResponses) {
   if (potentialResponses.default) {
     return mock.bind(null, potentialResponses.default);
   }
+
+  return null;
 }
 
 export default function ConfigureRouter(paths) {

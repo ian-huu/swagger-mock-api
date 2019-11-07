@@ -18,6 +18,17 @@ export default function(config) {
   let basePath;
   let router;
 
+  function init(api) {
+    if (config.ignorePaths) {
+      api.paths = PrunePaths(api.paths, config.ignorePaths);
+    } else if (config.mockPaths) {
+      api.paths = PrunePaths(api.paths, config.mockPaths, true);
+    }
+
+    basePath = api.basePath || '';
+    router = ConfigureRouter(api.paths);
+  }
+
   let parserPromise = new Promise((resolve) => {
     parser.dereference(config.swaggerFile, function(err, api) {
       if (err) throw err;
@@ -37,18 +48,8 @@ export default function(config) {
     });
   }
 
-  function init(api) {
-    if (config.ignorePaths) {
-      api.paths = PrunePaths(api.paths, config.ignorePaths);
-    } else if (config.mockPaths) {
-      api.paths = PrunePaths(api.paths, config.mockPaths, true);
-    }
-
-    basePath = api.basePath || '';
-    router = ConfigureRouter(api.paths);
-  }
-
   return function(req, res, next) {
+    // eslint-disable-next-line consistent-return
     parserPromise.then(() => {
       const method = req.method.toLowerCase();
 
@@ -70,7 +71,7 @@ export default function(config) {
         const response = matchingRoute.fn();
         res.setHeader('Content-Type', 'application/json');
         res.write(response !== null ? JSON.stringify(response) : '');
-      } catch(e) {
+      } catch (e) {
         res.statusCode = 500;
         res.write(JSON.stringify({message: e.message}, null, 4));
       }
@@ -78,4 +79,4 @@ export default function(config) {
       res.end();
     });
   };
-};
+}

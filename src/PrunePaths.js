@@ -1,4 +1,4 @@
-/* eslint no-loop-func:0*/
+/* eslint no-loop-func:0 */
 export default function PrunePaths(paths, passthroughPaths, keep) {
   let replacement = {};
 

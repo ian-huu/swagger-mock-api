@@ -48,20 +48,25 @@ export default function(config) {
     });
   }
 
-  return function(req, res, next) {
+  // eslint-disable-next-line consistent-return
+  return async function(req, callback) {
+    await parserPromise;
+    const method = req.method.toLowerCase();
+
+    let path = url.parse(req.url).pathname;
+    path = path.replace(basePath + '/', '');
+    if (path.charAt(0) !== '/') {
+      path = '/' + path;
+    }
+
+    const matchingRoute = router.match('/' + method + path);
+
     // eslint-disable-next-line consistent-return
-    parserPromise.then(() => {
-      const method = req.method.toLowerCase();
-
-      let path = url.parse(req.url).pathname;
-      path = path.replace(basePath + '/', '');
-      if (path.charAt(0) !== '/') {
-        path = '/' + path;
+    let worker = function(cb) {
+      if (!matchingRoute) {
+        cb();
+        return;
       }
-
-      const matchingRoute = router.match('/' + method + path);
-
-      if (!matchingRoute) return next();
 
       if (process.env.debug) {
         console.log('Request: %s %s', req.method, path);
@@ -69,14 +74,26 @@ export default function(config) {
 
       try {
         const response = matchingRoute.fn();
-        res.setHeader('Content-Type', 'application/json');
-        res.write(response !== null ? JSON.stringify(response) : '');
+        cb({
+          statusCode: 200,
+          contentType: 'application/json',
+          body: response !== null ? JSON.stringify(response) : ''
+        });
       } catch (e) {
-        res.statusCode = 500;
-        res.write(JSON.stringify({message: e.message}, null, 4));
+        cb({
+          statusCode: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            message: e.message
+          }, null, 4)
+        });
       }
-
-      res.end();
-    });
+    };
+    if (callback === undefined) {
+      return new Promise(res => {
+        worker(res);
+      });
+    }
+    worker(callback);
   };
 }

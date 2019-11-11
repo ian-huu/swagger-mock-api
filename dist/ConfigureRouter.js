@@ -1,26 +1,12 @@
-'use strict';
-
-var _interopRequireDefault = require('babel-runtime/helpers/interop-require-default')['default'];
-
-Object.defineProperty(exports, '__esModule', {
-  value: true
-});
-exports['default'] = ConfigureRouter;
-
-var _routes = require('routes');
-
-var _routes2 = _interopRequireDefault(_routes);
-
-var _MockData = require('./MockData');
-
-var _MockData2 = _interopRequireDefault(_MockData);
+import Routes from 'routes';
+import MockData from './MockData';
 
 function correctPath(path) {
-  var uri = path.replace(/^\/?|\/?$/, '');
-  var segments = uri.split('/');
+  let uri = path.replace(/^\/?|\/?$/, '');
+  let segments = uri.split('/');
+  return '/' + segments.map(s => {
+    let segment = s;
 
-  return '/' + segments.map(function (s) {
-    var segment = s;
     if (segment.charAt(0) === '{' && segment.charAt(segment.length - 1) === '}') {
       segment = segment.slice(1, -1);
       return ':' + segment;
@@ -28,53 +14,51 @@ function correctPath(path) {
 
     return segment;
   }).join('/');
-}
+} // wrapped MockData to satisfy eslint's no funciton definitions inside of loops
 
-// wrapped MockData to satisfy eslint's no funciton definitions inside of loops
+
 function mock(schema) {
-  return (0, _MockData2['default'])(schema);
+  return MockData(schema);
 }
 
 function generateResponse(potentialResponses) {
-  for (var k in potentialResponses) {
+  for (let k in potentialResponses) {
     if (k === 'default') continue;
+    let responseSchema = potentialResponses[k];
+    let responseCode = parseInt(k, 10);
 
-    var responseSchema = potentialResponses[k];
-    var responseCode = parseInt(k, 10);
     if (responseCode > 199 && responseCode < 300) {
       return mock.bind(null, responseSchema);
     }
   }
 
-  if (potentialResponses['default']) {
-    return mock.bind(null, potentialResponses['default']);
+  if (potentialResponses.default) {
+    return mock.bind(null, potentialResponses.default);
   }
+
+  return null;
 }
 
-function ConfigureRouter(paths) {
-  var router = new _routes2['default']();
+export default function ConfigureRouter(paths) {
+  let router = new Routes();
 
-  for (var pk in paths) {
+  for (let pk in paths) {
     if (!paths.hasOwnProperty(pk)) continue;
+    let path = paths[pk];
+    let route = correctPath(pk);
 
-    var path = paths[pk];
-    var route = correctPath(pk);
-
-    for (var mk in path) {
+    for (let mk in path) {
       if (!path.hasOwnProperty(mk)) continue;
-
-      var method = path[mk];
+      let method = path[mk];
 
       if (process.env.debug) {
         console.log('ADDING ROUTE: ', mk.toUpperCase() + ' ' + pk);
       }
 
-      var respond = generateResponse(method.responses, pk);
+      let respond = generateResponse(method.responses, pk);
       router.addRoute('/' + mk + route, respond);
     }
   }
 
   return router;
 }
-
-module.exports = exports['default'];

@@ -1,34 +1,9 @@
-'use strict';
-
-var _Promise = require('babel-runtime/core-js/promise')['default'];
-
-var _interopRequireDefault = require('babel-runtime/helpers/interop-require-default')['default'];
-
-Object.defineProperty(exports, '__esModule', {
-  value: true
-});
-
-var _url = require('url');
-
-var _url2 = _interopRequireDefault(_url);
-
-var _fs = require('fs');
-
-var _fs2 = _interopRequireDefault(_fs);
-
-var _swaggerParser = require('swagger-parser');
-
-var _swaggerParser2 = _interopRequireDefault(_swaggerParser);
-
-var _ConfigureRouter = require('./ConfigureRouter');
-
-var _ConfigureRouter2 = _interopRequireDefault(_ConfigureRouter);
-
-var _PrunePaths = require('./PrunePaths');
-
-var _PrunePaths2 = _interopRequireDefault(_PrunePaths);
-
-exports['default'] = function (config) {
+import url from 'url';
+import fs from 'fs';
+import parser from 'swagger-parser';
+import ConfigureRouter from './ConfigureRouter';
+import PrunePaths from './PrunePaths';
+export default function (config) {
   if (!config.swaggerFile) {
     throw new Error('Config is missing `swaggerFile` parameter');
   }
@@ -37,70 +12,84 @@ exports['default'] = function (config) {
     throw new Error('Cannot specify both ignorePaths and mockPaths in config');
   }
 
-  var basePath = undefined;
-  var router = undefined;
+  let basePath;
+  let router;
 
-  var parserPromise = new _Promise(function (resolve) {
-    _swaggerParser2['default'].dereference(config.swaggerFile, function (err, api) {
+  function init(api) {
+    if (config.ignorePaths) {
+      api.paths = PrunePaths(api.paths, config.ignorePaths);
+    } else if (config.mockPaths) {
+      api.paths = PrunePaths(api.paths, config.mockPaths, true);
+    }
+
+    basePath = api.basePath || '';
+    router = ConfigureRouter(api.paths);
+  }
+
+  let parserPromise = new Promise(resolve => {
+    parser.dereference(config.swaggerFile, function (err, api) {
       if (err) throw err;
-
       init(api);
       resolve();
     });
   });
 
   if (config.watch) {
-    _fs2['default'].watchFile(config.swaggerFile, function () {
-      _swaggerParser2['default'].dereference(config.swaggerFile, function (err, api) {
+    fs.watchFile(config.swaggerFile, function () {
+      parser.dereference(config.swaggerFile, function (err, api) {
         if (err) throw err;
-
         init(api);
       });
     });
-  }
+  } // eslint-disable-next-line consistent-return
 
-  function init(api) {
-    if (config.ignorePaths) {
-      api.paths = (0, _PrunePaths2['default'])(api.paths, config.ignorePaths);
-    } else if (config.mockPaths) {
-      api.paths = (0, _PrunePaths2['default'])(api.paths, config.mockPaths, true);
+
+  return async function (req, callback) {
+    await parserPromise;
+    const method = req.method.toLowerCase();
+    let path = url.parse(req.url).pathname;
+    path = path.replace(basePath + '/', '');
+
+    if (path.charAt(0) !== '/') {
+      path = '/' + path;
     }
 
-    basePath = api.basePath || '';
-    router = (0, _ConfigureRouter2['default'])(api.paths);
-  }
+    const matchingRoute = router.match('/' + method + path); // eslint-disable-next-line consistent-return
 
-  return function (req, res, next) {
-    parserPromise.then(function () {
-      var method = req.method.toLowerCase();
-
-      var path = _url2['default'].parse(req.url).pathname;
-      path = path.replace(basePath + '/', '');
-      if (path.charAt(0) !== '/') {
-        path = '/' + path;
+    let worker = function (cb) {
+      if (!matchingRoute) {
+        cb();
+        return;
       }
-
-      var matchingRoute = router.match('/' + method + path);
-
-      if (!matchingRoute) return next();
 
       if (process.env.debug) {
         console.log('Request: %s %s', req.method, path);
       }
 
       try {
-        var response = matchingRoute.fn();
-        res.setHeader('Content-Type', 'application/json');
-        res.write(response !== null ? JSON.stringify(response) : '');
+        const response = matchingRoute.fn();
+        cb({
+          statusCode: 200,
+          contentType: 'application/json',
+          body: response !== null ? JSON.stringify(response) : ''
+        });
       } catch (e) {
-        res.statusCode = 500;
-        res.write(JSON.stringify({ message: e.message }, null, 4));
+        cb({
+          statusCode: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            message: e.message
+          }, null, 4)
+        });
       }
+    };
 
-      res.end();
-    });
+    if (callback === undefined) {
+      return new Promise(res => {
+        worker(res);
+      });
+    }
+
+    worker(callback);
   };
-};
-
-;
-module.exports = exports['default'];
+}

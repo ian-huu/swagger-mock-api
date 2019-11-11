@@ -1,59 +1,31 @@
-'use strict';
+import hoek from 'hoek'; // import Chance from 'chance';
+// const chance = new Chance();
 
-var _createClass = require('babel-runtime/helpers/create-class')['default'];
+export default class ObjectParser {
+  constructor(parser) {
+    this.parser = parser;
+  }
 
-var _classCallCheck = require('babel-runtime/helpers/class-call-check')['default'];
+  canParse(node) {
+    return !!node.properties;
+  }
 
-var _interopRequireDefault = require('babel-runtime/helpers/interop-require-default')['default'];
+  parse(node) {
+    return this.generateObject(node);
+  }
 
-Object.defineProperty(exports, '__esModule', {
-    value: true
-});
+  generateObject(node) {
+    let ret = {};
+    let schema = hoek.clone(node);
+    schema = schema.properties || schema;
 
-var _chance = require('chance');
-
-var _chance2 = _interopRequireDefault(_chance);
-
-var _hoek = require('hoek');
-
-var _hoek2 = _interopRequireDefault(_hoek);
-
-var chance = new _chance2['default']();
-
-var ObjectParser = (function () {
-    function ObjectParser(parser) {
-        _classCallCheck(this, ObjectParser);
-
-        this.parser = parser;
+    for (let k in schema) {
+      if (schema.hasOwnProperty(k)) {
+        ret[k] = this.parser.parse(schema[k]);
+      }
     }
 
-    _createClass(ObjectParser, [{
-        key: 'canParse',
-        value: function canParse(node) {
-            return !!node.properties;
-        }
-    }, {
-        key: 'parse',
-        value: function parse(node) {
-            return this.generateObject(node);
-        }
-    }, {
-        key: 'generateObject',
-        value: function generateObject(node) {
-            var ret = {};
-            var schema = _hoek2['default'].clone(node);
-            schema = schema.properties || schema;
+    return ret;
+  }
 
-            for (var k in schema) {
-                ret[k] = this.parser.parse(schema[k]);
-            }
-
-            return ret;
-        }
-    }]);
-
-    return ObjectParser;
-})();
-
-exports['default'] = ObjectParser;
-module.exports = exports['default'];
+}

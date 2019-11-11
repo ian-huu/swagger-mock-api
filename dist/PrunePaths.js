@@ -1,32 +1,14 @@
-/* eslint no-loop-func:0*/
-'use strict';
+/* eslint no-loop-func:0 */
+export default function PrunePaths(paths, passthroughPaths, keep) {
+  let replacement = {};
 
-var _toArray = require('babel-runtime/helpers/to-array')['default'];
-
-Object.defineProperty(exports, '__esModule', {
-  value: true
-});
-exports['default'] = PrunePaths;
-
-function PrunePaths(paths, passthroughPaths, keep) {
-  var replacement = {};
-
-  var _loop = function (i) {
-    var p = passthroughPaths[i];
-
-    var _p$split$reverse = p.split(' ').reverse();
-
-    var _p$split$reverse2 = _toArray(_p$split$reverse);
-
-    var path = _p$split$reverse2[0];
-
-    var methods = _p$split$reverse2.slice(1);
+  for (let i = 0; i < passthroughPaths.length; i++) {
+    const p = passthroughPaths[i];
+    let [path, ...methods] = p.split(' ').reverse();
 
     if (methods.length) {
-      methods = methods.map(function (x) {
-        return x.toLowerCase();
-      });
-      methods.forEach(function (m) {
+      methods = methods.map(x => x.toLowerCase());
+      methods.forEach(m => {
         if (keep && replacement[path]) {
           replacement[path][m] = paths[path][m];
         } else if (keep) {
@@ -41,13 +23,7 @@ function PrunePaths(paths, passthroughPaths, keep) {
     } else {
       delete paths[path];
     }
-  };
-
-  for (var i = 0; i < passthroughPaths.length; i++) {
-    _loop(i);
   }
 
   return keep ? replacement : paths;
 }
-
-module.exports = exports['default'];
